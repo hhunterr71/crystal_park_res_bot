@@ -1,4 +1,5 @@
 import time
+from datetime import datetime
 from selenium import webdriver
 from selenium.webdriver.common.by import By
 from selenium.webdriver.chrome.service import Service
@@ -15,11 +16,11 @@ password = getpass.getpass("Enter password: ")
 license_plate = input("Enter license plate: ")
 date_input = input("Enter date (YYYY/MM/DD): ")
 
-# Process the date to desired format
-from datetime import datetime
+# Process the date and handle errors
 try:
-    date_processed = datetime.strptime(date_input, "%Y/%m/%d").strftime("%Y-%m-%dT08:00:00.000Z")
-    ##print(f"Processed date: {date_processed}")
+    date_obj = datetime.strptime(date_input, "%Y/%m/%d")
+    date_base = date_obj.strftime("%Y-%m-%d")  # Just the date portion (YYYY-MM-DD)
+    print(f"Looking for date: {date_base}")
 except ValueError:
     print("Invalid date format. Please enter the date in 'YYYY/MM/DD' format.")
     exit()
@@ -80,19 +81,6 @@ except Exception as e:
 # Optional: Pause to see the result
 time.sleep(5)
 
-# Wait for the dropdown to be available and select the desired value
-# try:
-#     dropdown = WebDriverWait(driver, 10).until(
-#         EC.presence_of_element_located((By.ID, "plate"))
-#     )
-#     select = Select(dropdown)
-#     select.select_by_value("32831")  
-#     # select.select_by_visible_text("Cgs444") #If the dropdown should be selected by visible text instead of value, you can use:
-#     print("Selected the dropdown value successfully!")
-# except Exception as e:
-#     print(f"Error selecting dropdown value: {e}")
-
-# Wait for the dropdown to be available and select the desired value
 try:
     dropdown = WebDriverWait(driver, 10).until(
         EC.presence_of_element_located((By.ID, "plate"))
@@ -132,28 +120,32 @@ try:
 except Exception as e:
     print(f"Error clicking 'Add More Days': {e}")
 
-# Specify the desired date
-# desired_date = "2025-02-01T08:00:00.000Z"
+
 refresh_rate = 5  # Refresh every 5 seconds
 
 while True:
     try:
-        # Locate the calendar date element
+        # Use starts-with to match any timestamp for the target date
+        # This avoids hardcoding specific timezone offsets (T07:00, T08:00, etc.)
         calendar_day = WebDriverWait(driver, 10).until(
-            EC.presence_of_element_located((By.XPATH, f"//div[@data-date='{date_processed}']"))
+            EC.presence_of_element_located((By.XPATH, f"//div[starts-with(@data-date, '{date_base}')]"))
         )
-        
+
+        # Get the actual data-date value for logging
+        actual_date = calendar_day.get_attribute("data-date")
+        print(f"Found calendar element with data-date: {actual_date}")
+
         # Check if the date is marked as "available"
         if "fc-unavailable" not in calendar_day.get_attribute("class"):
-            print(f"Date {date_processed} is available! Clicking the date...")
+            print(f"Date {actual_date} is available! Clicking the date...")
             calendar_day.click()  # Click on the available date
             break
         else:
-            print(f"Date {date_processed} is unavailable. Refreshing the page in {refresh_rate} seconds...")
+            print(f"Date {actual_date} is unavailable. Refreshing the page in {refresh_rate} seconds...")
             time.sleep(refresh_rate)
             driver.refresh()
     except TimeoutException:
-        print("Unable to locate the calendar date element. Retrying...")
+        print(f"Unable to locate the calendar date element for {date_base}. Retrying...")
         time.sleep(refresh_rate)  # Wait for the specified refresh rate before retrying
         driver.refresh()
 
@@ -192,6 +184,5 @@ try:
 except Exception as e:
     print(f"Error clicking 'Continue' button: {e}")
 
-
-# # Close browser
+# Close browser
 # driver.quit()
