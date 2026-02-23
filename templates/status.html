@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Reservation Status - Crystal Mountain Parking</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+    <div class="container">
+        <h1>Reservation In Progress</h1>
+        <p class="subtitle">Please wait while we process your reservation...</p>
+
+        <div id="status-container" class="status-container">
+            <div class="status-message info">
+                <span class="timestamp"></span>
+                <span class="message">Connecting to server...</span>
+            </div>
+        </div>
+
+        <div id="completion-actions" class="completion-actions" style="display: none;">
+            <a href="/" class="submit-btn">Make Another Reservation</a>
+        </div>
+    </div>
+
+    <script>
+        const sessionId = "{{ session_id }}";
+        const statusContainer = document.getElementById('status-container');
+        const completionActions = document.getElementById('completion-actions');
+
+        // Connect to SSE stream
+        const eventSource = new EventSource(`/stream/${sessionId}`);
+
+        eventSource.onmessage = function(event) {
+            try {
+                const data = JSON.parse(event.data);
+                addStatusMessage(data.message, data.status, data.timestamp);
+
+                // Check if this is the final message
+                if (data.final) {
+                    eventSource.close();
+                    completionActions.style.display = 'block';
+                }
+            } catch (error) {
+                console.error('Error parsing SSE data:', error);
+            }
+        };
+
+        eventSource.onerror = function(error) {
+            console.error('SSE connection error:', error);
+            addStatusMessage('Connection error. Please refresh the page.', 'error');
+            eventSource.close();
+        };
+
+        function addStatusMessage(message, status, timestamp) {
+            const messageDiv = document.createElement('div');
+            messageDiv.className = `status-message ${status}`;
+
+            const timestampSpan = document.createElement('span');
+            timestampSpan.className = 'timestamp';
+            if (timestamp) {
+                const date = new Date(timestamp);
+                timestampSpan.textContent = date.toLocaleTimeString();
+            }
+
+            const messageSpan = document.createElement('span');
+            messageSpan.className = 'message';
+            messageSpan.textContent = message;
+
+            messageDiv.appendChild(timestampSpan);
+            messageDiv.appendChild(messageSpan);
+
+            statusContainer.appendChild(messageDiv);
+
+            // Scroll to bottom
+            statusContainer.scrollTop = statusContainer.scrollHeight;
+        }
+
+        // Remove initial "Connecting..." message once we get the first real message
+        eventSource.addEventListener('message', function() {
+            const initialMessage = statusContainer.querySelector('.status-message');
+            if (initialMessage && initialMessage.querySelector('.message').textContent === 'Connecting to server...') {
+                initialMessage.remove();
+            }
+        }, { once: true });
+    </script>
+</body>
+</html>
