@@ -125,7 +125,7 @@ def click_add_more_days(driver, log):
         raise Exception(f"Failed to click 'Add More Days': {e}")
 
 
-def poll_for_availability(driver, date_base, log, refresh_rate=5):
+def poll_for_availability(driver, date_base, log, refresh_rate=5, cancel_event=None):
     """
     Poll the calendar for date availability.
 
@@ -138,6 +138,9 @@ def poll_for_availability(driver, date_base, log, refresh_rate=5):
     log(f"Polling for availability on {date_base}...", "polling")
 
     while True:
+        if cancel_event and cancel_event.is_set():
+            raise Exception("Reservation cancelled by user.")
+
         try:
             # Use starts-with to match any timestamp for the target date
             calendar_day = WebDriverWait(driver, 10).until(
@@ -174,7 +177,7 @@ def complete_reservation(driver, license_plate, log):
     """
     # Click "Reserve Car Parking" button
     try:
-        reserve_button = WebDriverWait(driver, 3).until(
+        reserve_button = WebDriverWait(driver, 10).until(
             EC.element_to_be_clickable((By.XPATH, "//div[contains(@class, 'add2cart') and contains(., 'Reserve Car Parking')]"))
         )
         reserve_button.click()
@@ -182,12 +185,15 @@ def complete_reservation(driver, license_plate, log):
     except Exception as e:
         raise Exception(f"Failed to click 'Reserve Car Parking' button: {e}")
 
+    # Wait for checkout form to load
+    time.sleep(3)
+
     # Bring window to front
     driver.execute_script("window.focus();")
 
     # Select license plate in second dropdown
     try:
-        dropdown = WebDriverWait(driver, 3).until(
+        dropdown = WebDriverWait(driver, 10).until(
             EC.presence_of_element_located((By.ID, "plate"))
         )
         select = Select(dropdown)
@@ -198,7 +204,7 @@ def complete_reservation(driver, license_plate, log):
 
     # Click "Continue" button
     try:
-        continue_button = WebDriverWait(driver, 3).until(
+        continue_button = WebDriverWait(driver, 10).until(
             EC.element_to_be_clickable((By.ID, "btnCheckout"))
         )
         continue_button.click()
@@ -206,8 +212,12 @@ def complete_reservation(driver, license_plate, log):
     except Exception as e:
         raise Exception(f"Failed to click 'Continue' button: {e}")
 
+    # Wait for the submission to complete before the browser closes
+    time.sleep(5)
+    log("Checkout submitted, reservation confirmed.", "info")
 
-def run_reservation(username, password, license_plate, date_str, progress_callback=None):
+
+def run_reservation(username, password, license_plate, date_str, progress_callback=None, cancel_event=None):
     """
     Main reservation function that coordinates the entire workflow.
 
@@ -232,12 +242,17 @@ def run_reservation(username, password, license_plate, date_str, progress_callba
     try:
         # Validate and process date
         log("Validating date format...", "info")
-        try:
-            date_obj = datetime.strptime(date_str, "%Y/%m/%d")
-            date_base = date_obj.strftime("%Y-%m-%d")
-            log(f"Looking for date: {date_base}", "info")
-        except ValueError:
-            raise Exception("Invalid date format. Please use YYYY/MM/DD format.")
+        date_obj = None
+        for fmt in ("%Y/%m/%d", "%Y-%m-%d"):
+            try:
+                date_obj = datetime.strptime(date_str, fmt)
+                break
+            except ValueError:
+                continue
+        if date_obj is None:
+            raise Exception("Invalid date format. Please use YYYY/MM/DD or YYYY-MM-DD format.")
+        date_base = date_obj.strftime("%Y-%m-%d")
+        log(f"Looking for date: {date_base}", "info")
 
         # Initialize driver
         log("Initializing browser...", "info")
@@ -253,7 +268,7 @@ def run_reservation(username, password, license_plate, date_str, progress_callba
         click_add_more_days(driver, log)
 
         # Poll for availability
-        poll_for_availability(driver, date_base, log)
+        poll_for_availability(driver, date_base, log, cancel_event=cancel_event)
 
         # Complete reservation
         complete_reservation(driver, matched_plate, log)

@@ -18,6 +18,10 @@
             </div>
         </div>
 
+        <div id="cancel-actions" class="completion-actions">
+            <button id="cancel-btn" onclick="cancelReservation()" class="cancel-btn">Stop Farming</button>
+        </div>
+
         <div id="completion-actions" class="completion-actions" style="display: none;">
             <a href="/" class="submit-btn">Make Another Reservation</a>
         </div>
@@ -39,6 +43,7 @@
                 // Check if this is the final message
                 if (data.final) {
                     eventSource.close();
+                    document.getElementById('cancel-actions').style.display = 'none';
                     completionActions.style.display = 'block';
                 }
             } catch (error) {
@@ -74,6 +79,16 @@
 
             // Scroll to bottom
             statusContainer.scrollTop = statusContainer.scrollHeight;
+        }
+
+        function cancelReservation() {
+            const btn = document.getElementById('cancel-btn');
+            btn.disabled = true;
+            btn.textContent = 'Cancelling...';
+            eventSource.close();
+            fetch(`/cancel/${sessionId}`, { method: 'POST' }).then(() => {
+                window.location.href = '/';
+            });
         }
 
         // Remove initial "Connecting..." message once we get the first real message

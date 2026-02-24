@@ -12,6 +12,7 @@ app = Flask(__name__)
 # Store active reservation sessions
 # Structure: {session_id: queue.Queue()}
 active_sessions = {}
+cancel_events = {}
 
 
 @app.route('/')
@@ -35,9 +36,11 @@ def start_reservation():
     # Generate unique session ID
     session_id = str(uuid.uuid4())
 
-    # Create message queue for this session
+    # Create message queue and cancel event for this session
     message_queue = queue.Queue()
+    cancel_event = threading.Event()
     active_sessions[session_id] = message_queue
+    cancel_events[session_id] = cancel_event
 
     # Get form data
     username = request.form.get('username', '').strip()
@@ -59,7 +62,7 @@ def start_reservation():
 
     # Start bot in background thread
     def run_bot():
-        result = run_reservation(username, password, license_plate, date_str, progress_callback)
+        result = run_reservation(username, password, license_plate, date_str, progress_callback, cancel_event)
 
         # Push final result to queue
         if result['success']:
@@ -114,6 +117,8 @@ def stream(session_id):
                             time.sleep(5)
                             if session_id in active_sessions:
                                 del active_sessions[session_id]
+                            if session_id in cancel_events:
+                                del cancel_events[session_id]
 
                         cleanup_thread = threading.Thread(target=cleanup)
                         cleanup_thread.daemon = True
@@ -137,6 +142,16 @@ def stream(session_id):
             'Connection': 'keep-alive'
         }
     )
+
+
+@app.route('/cancel/<session_id>', methods=['POST'])
+def cancel(session_id):
+    """Signal a running reservation to stop."""
+    event = cancel_events.get(session_id)
+    if event:
+        event.set()
+        return {"status": "cancelled"}, 200
+    return {"status": "not_found"}, 404
 
 
 if __name__ == '__main__':

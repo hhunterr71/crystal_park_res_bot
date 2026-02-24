@@ -1,8 +1,6 @@
 import os
 from selenium import webdriver
-from selenium.webdriver.chrome.service import Service
 from selenium.webdriver.chrome.options import Options
-from webdriver_manager.chrome import ChromeDriverManager
 
 
 def setup_driver():
@@ -30,10 +28,7 @@ def setup_driver():
     if os.getenv('CHROME_BIN'):
         options.binary_location = os.getenv('CHROME_BIN')
 
-    # Initialize driver
-    driver = webdriver.Chrome(
-        service=Service(ChromeDriverManager().install()),
-        options=options
-    )
+    # Selenium 4.6+ manages ChromeDriver automatically
+    driver = webdriver.Chrome(options=options)
 
     return driver
