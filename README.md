@@ -16,45 +16,13 @@ This project automates parking reservations for Crystal Mountain Resort using Se
 - Credentials are NOT stored on the server
 - Automatically polls for availability
 
-### Deployment to Render (Free)
+### Live Demo
 
-1. **Push code to GitHub**
-   ```bash
-   git add .
-   git commit -m "Deploy web service"
-   git push origin main
-   ```
+The bot is hosted and ready to use at:
 
-2. **Create Render account**
-   - Go to [render.com](https://render.com)
-   - Sign up for free account
+**[https://crystal-park-res-bot.onrender.com/](https://crystal-park-res-bot.onrender.com/)**
 
-3. **Create New Web Service**
-   - Click "New +" → "Web Service"
-   - Connect your GitHub repository
-   - Render will auto-detect the Dockerfile
-
-4. **Configure Service**
-   - Name: `crystal-parking-bot`
-   - Region: Choose closest to you
-   - Branch: `main`
-   - Plan: **Free**
-   - Click "Create Web Service"
-
-5. **Wait for Deployment**
-   - First build takes 5-10 minutes
-   - You'll get a URL like: `https://crystal-parking-bot.onrender.com`
-
-6. **Access Your Bot**
-   - Visit the URL from any device
-   - Enter credentials and date
-   - Watch real-time status updates!
-
-### Important Notes About Free Tier
-- Service sleeps after 15 minutes of inactivity
-- First request after sleep takes 30-60 seconds (cold start)
-- Perfectly fine for personal use
-- No credit card required
+> Note: This runs on a free hosting tier that spins down when idle. If it hasn't been visited recently, the first load can take 30-60 seconds to wake up — just give it a moment.
 
 ### Local Testing (Web Service)
 
